@@ -44,6 +44,8 @@ def create_app():
     def archive(run_id):
         from app.archive import build_archive
         run=store.get(run_id)
+        pending=run["stages"][5]["metrics"].get("differences",0)
+        if pending and run["decision"]!="已复核": raise DomainError("UNEXPLAINED_DIFFERENCES","对账差异未说明，签核后才能封存",409)
         return application.response_class(build_archive(run),mimetype="text/csv",headers={"Content-Disposition":'attachment; filename="evidence.csv"'})
     for index,(slug,title) in enumerate(MODULES,1):
         module=importlib.import_module(f"app.modules.m{index}_{slug}.handler")

@@ -19,6 +19,13 @@ def get(run_id):
 def latest():
     with connect() as db: row=db.execute("SELECT id FROM runs ORDER BY rowid DESC LIMIT 1").fetchone()
     return get(row[0]) if row else None
+def find_predecessor(input_sha256,run_id):
+    "同一输入摘要下最近一份不同批次，用于到期复核承接；旧批次原样保留。"
+    with connect() as db: rows=db.execute("SELECT payload FROM runs WHERE id!=? ORDER BY rowid DESC",(run_id,)).fetchall()
+    for (payload,) in rows:
+        previous=json.loads(payload)
+        if previous.get("manifest",{}).get("input_sha256")==input_sha256: return previous
+    return None
 def history():
     with connect() as db: return [{"run_id":i,"version":v,"decision":d} for i,v,d in db.execute("SELECT id,version,decision FROM runs ORDER BY rowid DESC")]
 def review(run_id,version,decision):

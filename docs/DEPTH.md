@@ -29,10 +29,18 @@
 | TRAP-07 | 上游结果空值 | 误报拒绝 | 隔离缺失 | `app/values.py` | `tests/test_m3.py::test_real_missing_decision_not_zero` |
 | TRAP-19 | 允许与拒绝重叠 | 后写覆盖 | 拒绝优先且排序证据 | `app/modules/m4_conflicts/rules.py` | `tests/test_m4.py::test_deny_priority_counterexample` |
 | TRAP-23 | 授权到期点 | 多放行一次 | 半开生效窗 | `app/modules/m3_grants/rules.py` | `tests/test_m3.py::test_expiry_endpoint_excluded` |
+| TRAP-31 | 规则变更重算 | 覆盖旧结论 | 有效授权集计入批次摘要，变更另立批次 | `app/pipeline.py` | `tests/test_expiry_review.py::test_rule_change_keeps_old_and_opens_new_review` |
+| TRAP-32 | 到期复核重试 | 重复批次版本 | 授权集排序归一后摘要幂等 | `app/modules/m3_grants/rules.py` | `tests/test_expiry_review.py::test_retry_same_expiry_review_adds_no_duplicate` |
+| TRAP-33 | 差异直接封存 | 未说明即归档 | 未签核差异批次归档返回409 | `app/main.py` | `tests/test_expiry_review.py::test_unexplained_differences_block_seal` |
+| TRAP-34 | 切换失败 | 丢失旧证据 | 校验先于写库，事务原子写入 | `app/pipeline.py` | `tests/test_expiry_review.py::test_failed_switch_preserves_old_evidence` |
 
 ## 对账规则
 
 输入原始逻辑行=最终采纳来源行+隔离来源行+重复行+空白行+分段表头。派生记录用_sources保存完整来源，因此分组不丢行。业务预期合计与上游申报合计之差等于逐行差异之和。结果按输入摘要、规则版本及参数产生唯一批次，事务写入；同源重跑只复用已有批次。
+
+## 到期复核裁决
+
+授权规则变更不重算旧批次：有效授权集（校验并按授权号排序）计入批次摘要与运行清单，任何授权或规则版本变化自动另立新复核批次，旧批次及其已复核状态原样保留、可独立追回与导出。页面与归档均只读取已保存批次，不即时重算，服从同一结论。新批次rebase字段记录承接批次号，并按访问发生时刻逐事件对比授权裁决、命中规则、分区裁决与执行差异，标出失去或重新获得授权依据的访问。批次存在对账差异且未签核时归档返回409，签核（已复核）视为差异已说明方可封存；退回复核后重新禁止封存。
 
 ## 已知不覆盖
 

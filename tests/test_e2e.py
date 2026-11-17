@@ -15,6 +15,8 @@ def test_stale_review_409(client):
     assert client.post(u,json={"version":1,"decision":"退回复核"}).status_code==409
 def test_export_has_manifest_and_quarantine(client):
     p=client.post("/api/runs",json={"sample":"dirty.csv"}).get_json()
+    assert client.get("/api/runs/"+p["run_id"]+"/archive").status_code==409
+    client.post("/api/runs/"+p["run_id"]+"/review",json={"version":p["version"],"decision":"已复核"})
     r=client.get("/api/runs/"+p["run_id"]+"/archive")
     rows=list(csv.reader(io.StringIO(r.data.decode("utf-8-sig"))))
     assert rows[0][1]=="input_sha256" and any(x[3]=="quarantine" for x in rows[1:])

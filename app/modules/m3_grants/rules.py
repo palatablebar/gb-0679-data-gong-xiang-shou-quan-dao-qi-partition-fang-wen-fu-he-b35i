@@ -8,8 +8,13 @@ def validate_grants(grants):
         if g["id"] in ids or instant(g["start"])>=instant(g["end"]) or g["effect"] not in {"allow","deny"} or g["from_partition"]>=g["to_partition"]:raise DomainError("BAD_GRANT","授权版本无效")
         ids.add(g["id"])
     return grants
+def effective_grants(params):
+    "批次身份所用的有效授权集：校验后按授权号排序，列表顺序不影响批次号。"
+    grants=(params or {}).get("grants",GRANTS)
+    if grants is None: raise DomainError("BAD_GRANT","授权版本无效")
+    return sorted(validate_grants(grants),key=lambda g:g["id"])
 def evaluate(rows,context):
-    grants=validate_grants(context.get("parameters",{}).get("grants",GRANTS));good=[];bad=[]
+    grants=effective_grants(context.get("parameters",{}));good=[];bad=[]
     for row in rows:
         try:
             at=instant(row["access_time"]);reported=number(row["reported"])
